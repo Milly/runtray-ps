@@ -26,44 +26,52 @@ Users should unblock files downloaded from the Internet so that Windows does not
 1. Download `runtray.ps1` and [Unblock](unblock-downloaded-file).
 2. Copy the ps1 file and write a [JSON configuration file](#json-configuration-file) with the same name to the same folder.
 
-        C:\my\app\my-application.ps1
-        C:\my\app\my-application.json
+       C:\my\app\my-application.ps1
+       C:\my\app\my-application.json
 
 3. Run install command.
 
-        powershell -NoProfile -ExecutionPolicy RemoteSigned C:\my\app\my-application.ps1 install
+       powershell -NoProfile -ExecutionPolicy RemoteSigned C:\my\app\my-application.ps1 install
 
 ### Use `runtray.ps1` as global
 
 1. Download `runtray.ps1` to any folder and [Unblock](unblock-downloaded-file).
 
-        C:\my\program\runtray.ps1
+       C:\my\program\runtray.ps1
 
 2. Write a [JSON configuration file](#json-configuration-file) and put it in any folder.
 
-        C:\my\app\my-application.json
+       C:\my\app\my-application.json
 
 3. Run install command.
 
-        powershell -NoProfile -ExecutionPolicy RemoteSigned C:\my\program\runtray.ps1 install -ConfigPath C:\my\app\my-application.json
+       powershell -NoProfile -ExecutionPolicy RemoteSigned C:\my\program\runtray.ps1 install -ConfigPath C:\my\app\my-application.json
+
+## Start application
+
+The shortcut is installed to the Startup folder, so it will automatically start when you log on to Windows.
+
+Alternatively, you can launch it with the script `start` command.
 
 ## Usage
 
 ### Command line
 
-    powershell -NoProfile -ExecutionPolicy RemoteSigned .\runtray.ps1 <Command> [Option ...]
+```powershell
+powershell -NoProfile -ExecutionPolicy RemoteSigned .\runtray.ps1 <Command> [Option ...]
+```
 
-| Command   | Description                               |
-| -------   | -----------                               |
-| start     | Start the executable from shortcut.       |
-| install   | Install shortcut to the startup folder.   |
-| uninstall | Remove shortcut from the startup folder.  |
-| run       | Start the executable in current terminal. |
+| Command   | Description
+| -------   | -----------
+| start     | Start the executable from shortcut.
+| install   | Install shortcut to the startup folder.
+| uninstall | Remove shortcut from the startup folder.
+| run       | Start the executable in current terminal. For internal or debug.
 
-| Option              | Description                     |
-| ------              | -----------                     |
-| -ConfigPath `file`  | JSON configuration file path.   |
-| -GUI                | Enable GUI mode.                |
+| Option             | Description
+| ------             | -----------
+| -ConfigPath `file` | JSON configuration file path.
+| -GUI               | Enable GUI mode.
 
 ### JSON configuration file
 
@@ -81,11 +89,11 @@ Example::
 }
 ```
 
-| Element           | Required | Type     | Description                                                |
-| -------           | -------- | ----     | -----------                                                |
-| .name             | No       | string   | Used for the shortcut filename and the program title.      |
-| .description      | No       | string   | Written in the description field of the shortcut.          |
-| .executable       | Yes      | string   | Path to executable.                                        |
-| .arguments        | No       | string[] | Arguments of the executable.                               |
-| .workingdirectory | No       | string   | Path to the working directory.                             |
-| .shutdownwait     | No       | int      | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>. |
+| Element           | Required | Type     | Description
+| -------           | -------- | ----     | -----------
+| .name             | No       | string   | Used for the shortcut filename and the program title.
+| .description      | No       | string   | Written in the description field of the shortcut.
+| .executable       | Yes      | string   | Path to executable.
+| .arguments        | No       | string[] | Arguments of the executable.
+| .workingdirectory | No       | string   | Path to the working directory.
+| .shutdownwait     | No       | int      | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>.
