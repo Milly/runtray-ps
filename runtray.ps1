@@ -98,7 +98,7 @@ function Start-Main() {
         'start' { Start-FromShortcut }
         'install' { Install-Shortcut }
         'uninstall' { Uninstall-Shortcut }
-        'run' { Start-Executable }
+        'run' { Start-GUI }
         default { Get-Help $PSCommandPath }
     }
 }
@@ -153,7 +153,33 @@ function Uninstall-Shortcut() {
     }
 }
 
-function Start-Executable() {
+function Start-GUI() {
+    $mutexName = "${script:UUID}:${script:appName}"
+    Invoke-InMutex -name $mutexName -block {
+        $lastError = $null
+        Disable-CtrlC
+        $child = Start-Executable -PassThru
+        try {
+            Start-AppContext $child
+        } catch {
+            $lastError = $_
+        } finally {
+            if ($child) {
+                Stop-ProcessGracefully $child
+            }
+            "Exit code: $($child.ExitCode)" | Write-Verbose
+            if ($lastError) {
+                throw $lastError
+            }
+            exit $child.ExitCode
+        }
+    } -elseBlock {
+        "Already running: ${script:appName}" | Write-Warning
+        exit 1
+    }
+}
+
+function Start-Executable([switch]$PassThru) {
     $executable = $script:config.executable
 
     $arguments = if ($script:config.arguments -is [array]) {
@@ -175,33 +201,19 @@ function Start-Executable() {
         $script:shutdownWait
     }
 
-    $mutexName = "${script:UUID}:${script:appName}"
-    $mutex = New-Object System.Threading.Mutex($false, $mutexName)
+    "Set working directory: $workDir" | Write-Verbose
+    "Start executable: $executable $arguments" | Write-Verbose
+    Start-Process $executable $arguments -WorkingDirectory $workDir `
+        -NoNewWindow -PassThru:$PassThru
+}
+
+function Invoke-InMutex([string]$name, [scriptblock]$block, [scriptblock]$elseBlock) {
+    $mutex = New-Object System.Threading.Mutex($false, $name)
     try {
         if ($mutex.WaitOne(0, $false)) {
-            $lastError = $null
-            Disable-CtrlC
-            "Set working directory: $workDir" | Write-Verbose
-            "Start executable: $executable $arguments" | Write-Verbose
-            $child = Start-Process $executable $arguments `
-                -WorkingDirectory $workDir -NoNewWindow -PassThru
-            try {
-                Start-AppContext $child
-            } catch {
-                $lastError = $_
-            } finally {
-                if (-Not $child.HasExited) {
-                    Stop-ProcessGracefully $child
-                }
-                "Exit code: $($child.ExitCode)" | Write-Verbose
-                if ($lastError) {
-                    throw $lastError
-                }
-                exit $child.ExitCode
-            }
-        } else {
-            "Mutex already exists: $mutexName" | Write-Warning
-            exit 1
+            & $block
+        } elseif ($elseBlock) {
+            & $elseBlock
         }
     } finally {
         $mutex.Close()
