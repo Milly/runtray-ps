@@ -243,7 +243,8 @@ function Start-AppContext([System.Diagnostics.Process]$child) {
             [void][System.Windows.Forms.Application]::Run($appContext)
         }
     } finally {
-        $notify.Visible = $false
+        $appContext.Dispose()
+        $notify.Dispose()
     }
 }
 
@@ -253,9 +254,13 @@ function Get-ShortcutPath() {
 }
 
 function Show-MessageBox([string]$message, $buttonType='OK', $iconType='None', $defaultButton='button1'){
-    $form = New-Object System.Windows.Forms.form
+    $form = New-Object System.Windows.Forms.Form
     $form.TopMost = $true
-    [System.Windows.Forms.MessageBox]::Show($form, $message, $script:appName, $buttonType, $iconType, $defaultButton)
+    try {
+        [System.Windows.Forms.MessageBox]::Show($form, $message, $script:appName, $buttonType, $iconType, $defaultButton)
+    } finally {
+        $form.Dispose()
+    }
 }
 
 function Remove-Extension([string]$name) {
