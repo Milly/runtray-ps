@@ -191,12 +191,7 @@ function Start-Executable() {
                 $lastError = $_
             } finally {
                 if (-Not $child.HasExited) {
-                    "Send Ctrl-C to process: $($child.Id)" | Write-Verbose
-                    $exited = Send-CtrlC $child -wait $shutdownWait
-                    if (-Not $exited) {
-                        "Force stop process: $($child.Id)" | Write-Verbose
-                        Stop-ProcessTree $child.Id
-                    }
+                    Stop-ProcessGracefully $child
                 }
                 "Exit code: $($child.ExitCode)" | Write-Verbose
                 if ($lastError) {
@@ -313,6 +308,17 @@ function Disable-CtrlC() {
 
 function Disable-CloseButton() {
     [RunTray.Win32API]::DisableCloseButton($script:mainHWnd)
+}
+
+function Stop-ProcessGracefully([System.Diagnostics.Process]$process) {
+    if (-Not $process.HasExited) {
+        "Send Ctrl-C to process: $($process.Id)" | Write-Verbose
+        $exited = Send-CtrlC $process -wait $shutdownWait
+        if (-Not $exited) {
+            "Force stop process: $($process.Id)" | Write-Verbose
+            Stop-ProcessTree $process.Id
+        }
+    }
 }
 
 function Stop-ProcessTree([int]$ppid) {
