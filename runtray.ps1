@@ -179,12 +179,15 @@ function Start-Executable() {
     $mutex = New-Object System.Threading.Mutex($false, $mutexName)
     try {
         if ($mutex.WaitOne(0, $false)) {
+            $lastError = $null
             "Set working directory: $workDir" | Write-Verbose
             "Start executable: $executable $arguments" | Write-Verbose
             $child = Start-Process $executable $arguments `
                 -WorkingDirectory $workDir -NoNewWindow -PassThru
             try {
                 Start-AppContext $child
+            } catch {
+                $lastError = $_
             } finally {
                 if (-Not $child.HasExited) {
                     "Send Ctrl-C to process: $($child.Id)" | Write-Verbose
@@ -195,6 +198,9 @@ function Start-Executable() {
                     }
                 }
                 "Exit code: $($child.ExitCode)" | Write-Verbose
+                if ($lastError) {
+                    throw $lastError
+                }
                 exit $child.ExitCode
             }
         } else {
