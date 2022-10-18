@@ -59,10 +59,10 @@ Param(
 $ErrorActionPreference = 'Stop'
 $UUID = 'f5662bbc-52ce-4a38-8bf5-20897ed3b048'
 $appName = 'runtray'
-$config = $false
-$startupWait = 500
+$config = $null
 $shutdownWait = 2000
 $mainHWnd = (Get-Process -PID $PID).MainWindowHandle
+$serviceProcess = $null
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -158,20 +158,23 @@ function Start-GUI() {
     Invoke-InMutex -name $mutexName -block {
         $lastError = $null
         Disable-CtrlC
-        $child = Start-Executable -PassThru
+        Disable-CloseButton
         try {
-            Start-AppContext $child
+            Start-AppContext
         } catch {
             $lastError = $_
         } finally {
-            if ($child) {
-                Stop-ProcessGracefully $child
+            $exitCode = 0
+            if ($script:serviceProcess) {
+                Stop-ProcessGracefully $script:serviceProcess
+                $exitCode = $script:serviceProcess.ExitCode
+                $script:serviceProcess.Close()
+                "Service exit code: $exitCode" | Write-Verbose
             }
-            "Exit code: $($child.ExitCode)" | Write-Verbose
             if ($lastError) {
                 throw $lastError
             }
-            exit $child.ExitCode
+            exit $exitCode
         }
     } -elseBlock {
         "Already running: ${script:appName}" | Write-Warning
@@ -220,14 +223,29 @@ function Invoke-InMutex([string]$name, [scriptblock]$block, [scriptblock]$elseBl
     }
 }
 
-function Start-AppContext([System.Diagnostics.Process]$child) {
+function Start-AppContext() {
     $appContext = New-Object RunTray.SyncApplicationContext
 
-    $child.EnableRaisingEvents = $true
-    $child.SynchronizingObject = $appContext
-    $child.add_Exited({
+    $serviceExitedHandler = {
         $appContext.ExitThread()
-    })
+    }
+
+    $restartService = {
+        $service = $script:serviceProcess
+        if ($service) {
+            $service.remove_Exited($serviceExitedHandler)
+            Stop-ProcessGracefully $service
+            $service.Close()
+        }
+
+        $service = Start-Executable -PassThru
+        $service.EnableRaisingEvents = $true
+        $service.SynchronizingObject = $appContext
+        $service.add_Exited($serviceExitedHandler)
+        $script:serviceProcess = $service
+    }
+
+    $appContext.add_Ready($restartService)
 
     $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($script:config.executable)
     $notify = New-Object System.Windows.Forms.NotifyIcon
@@ -249,6 +267,16 @@ function Start-AppContext([System.Diagnostics.Process]$child) {
     })
     $menuItems += $consoleMenu
 
+    $restartMenu = New-Object System.Windows.Forms.MenuItem '&Restart service'
+    $restartMenu.add_Click({
+        $msg = 'Are you sure you want to restart the service?'
+        $res = Show-MessageBox $msg -buttonType YesNo -iconType Question -defaultButton button2
+        if ($res -eq 'Yes') {
+            & $restartService
+        }
+    })
+    $menuItems += $restartMenu
+
     $menuItems += New-Object System.Windows.Forms.MenuItem '-'
 
     $exitMenu = New-Object System.Windows.Forms.MenuItem 'E&xit'
@@ -260,11 +288,11 @@ function Start-AppContext([System.Diagnostics.Process]$child) {
     $notify.ContextMenu.MenuItems.AddRange($menuItems)
 
     try {
-        if (-Not $child.WaitForExit($script:startupWait)) {
-            Disable-CloseButton
-            [void][System.Windows.Forms.Application]::Run($appContext)
-        }
+        [void][System.Windows.Forms.Application]::Run($appContext)
     } finally {
+        if ($script:serviceProcess) {
+            $script:serviceProcess.remove_Exited($serviceExitedHandler)
+        }
         $appContext.Dispose()
         $notify.Dispose()
     }
