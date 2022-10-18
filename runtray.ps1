@@ -230,9 +230,9 @@ function Start-AppContext([System.Diagnostics.Process]$child) {
     $notify.Text = $script:appName
     $notify.Visible = $true
     $notify.ContextMenu = New-Object System.Windows.Forms.ContextMenu
+    $menuItems = @()
 
-    $consoleMenu = New-Object System.Windows.Forms.MenuItem
-    $consoleMenu.Text = 'Show console'
+    $consoleMenu = New-Object System.Windows.Forms.MenuItem 'Show &console'
     $consoleMenu.Checked = -Not $script:GUI
     $consoleMenu.add_Click({
         $consoleMenu.Checked = -Not $consoleMenu.Checked
@@ -242,14 +242,17 @@ function Start-AppContext([System.Diagnostics.Process]$child) {
             Hide-Window
         }
     })
+    $menuItems += $consoleMenu
 
-    $exitMenu = New-Object System.Windows.Forms.MenuItem
-    $exitMenu.Text = 'Exit'
+    $menuItems += New-Object System.Windows.Forms.MenuItem '-'
+
+    $exitMenu = New-Object System.Windows.Forms.MenuItem 'E&xit'
     $exitMenu.add_Click({
         $appContext.ExitThread()
     })
+    $menuItems += $exitMenu
 
-    $notify.ContextMenu.MenuItems.AddRange(@($consoleMenu, $exitMenu))
+    $notify.ContextMenu.MenuItems.AddRange($menuItems)
 
     try {
         if (-Not $child.WaitForExit($script:startupWait)) {
