@@ -221,8 +221,13 @@ function Invoke-InMutex([string]$name, [scriptblock]$block, [scriptblock]$elseBl
 }
 
 function Start-AppContext([System.Diagnostics.Process]$child) {
-    $appContext = New-Object RunTray.ExitApplicationContext
-    $appContext.ApplyExitedHandler($child)
+    $appContext = New-Object RunTray.SyncApplicationContext
+
+    $child.EnableRaisingEvents = $true
+    $child.SynchronizingObject = $appContext
+    $child.add_Exited({
+        $appContext.ExitThread()
+    })
 
     $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($script:config.executable)
     $notify = New-Object System.Windows.Forms.NotifyIcon
@@ -349,8 +354,11 @@ function Stop-ProcessTree([int]$ppid) {
 
 Add-Type -ReferencedAssemblies System.Windows.Forms -TypeDefinition @'
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace RunTray {
@@ -400,15 +408,61 @@ namespace RunTray {
         }
     }
 
-    public class ExitApplicationContext : ApplicationContext {
-        public void OnExited(object sender, EventArgs e) {
-            ExitThread();
+    public class SyncApplicationContext : ApplicationContext, ISynchronizeInvoke {
+        private TaskScheduler taskScheduler;
+
+        public event EventHandler Ready;
+
+        public SyncApplicationContext() {
+            Application.Idle += this.OnApplicationIdle;
         }
 
-        public void ApplyExitedHandler(Process process) {
-            process.EnableRaisingEvents = true;
-            process.Exited += this.OnExited;
+        protected void OnReady(EventArgs e) {
+            if (this.Ready != null) {
+                Ready(this, e);
+            }
         }
+
+        private void OnApplicationIdle(object sender, EventArgs e) {
+            Application.Idle -= this.OnApplicationIdle;
+            this.taskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+            OnReady(e);
+        }
+
+        // #region ISynchronizeInvoke
+
+        public bool InvokeRequired {
+            get {
+                return this.taskScheduler != null &&
+                    this.taskScheduler.Id != TaskScheduler.Current.Id;
+            }
+        }
+
+        public IAsyncResult BeginInvoke(Delegate method, object[] args) {
+            return Task.Factory.StartNew<object>(
+                    () => {
+                        return method.DynamicInvoke(args);
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.None,
+                    this.taskScheduler);
+        }
+
+        public object EndInvoke(IAsyncResult result) {
+            var task = (Task<object>)result;
+            task.Wait();
+            return task.Result;
+        }
+
+        public object Invoke(Delegate method, object[] args) {
+            if (this.InvokeRequired) {
+                return EndInvoke(BeginInvoke(method, args));
+            } else {
+                return method.DynamicInvoke(args);
+            }
+        }
+
+        // #endregion
     }
 
 }
