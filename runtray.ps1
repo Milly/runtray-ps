@@ -180,6 +180,7 @@ function Start-Executable() {
     try {
         if ($mutex.WaitOne(0, $false)) {
             $lastError = $null
+            Disable-CtrlC
             "Set working directory: $workDir" | Write-Verbose
             "Start executable: $executable $arguments" | Write-Verbose
             $child = Start-Process $executable $arguments `
@@ -306,6 +307,10 @@ function Send-CtrlC([System.Diagnostics.Process]$process, [int]$wait) {
     [RunTray.Win32API]::SendCtrlC($process, $wait)
 }
 
+function Disable-CtrlC() {
+    [void][RunTray.Win32API]::SetConsoleCtrlHandler($null, $true)
+}
+
 function Disable-CloseButton() {
     [RunTray.Win32API]::DisableCloseButton($script:mainHWnd)
 }
@@ -338,7 +343,7 @@ namespace RunTray {
         public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool SetConsoleCtrlHandler(ConsoleCtrlHandler HandlerRoutine, bool Add);
+        public static extern bool SetConsoleCtrlHandler(ConsoleCtrlHandler HandlerRoutine, bool Add);
 
         [DllImport("kernel32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -350,7 +355,7 @@ namespace RunTray {
         [DllImport("user32.dll")]
         private static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
 
-        private delegate bool ConsoleCtrlHandler(uint dwCtrlEvent);
+        public delegate bool ConsoleCtrlHandler(uint dwCtrlEvent);
 
         public static bool SendCtrlC(Process process, int wait) {
             // Disable Ctrl-C handling
