@@ -305,7 +305,7 @@ function Stop-ProcessTree([int]$ppid) {
         | ForEach-Object { Stop-ProcessTree $_.ProcessId }
     try {
         Stop-Process -Id $ppid
-    } catch [ObjectNotFound] {
+    } catch [Microsoft.PowerShell.Commands.ProcessCommandException] {
         # pass
     }
 }
