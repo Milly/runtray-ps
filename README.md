@@ -89,11 +89,11 @@ Example::
 }
 ```
 
-| Element           | Required | Type     | Description
-| -------           | -------- | ----     | -----------
-| .name             | No       | string   | Used for the shortcut filename and the program title.
-| .description      | No       | string   | Written in the description field of the shortcut.
-| .executable       | Yes      | string   | Path to executable.
-| .arguments        | No       | string[] | Arguments of the executable.
-| .workingdirectory | No       | string   | Path to the working directory.
-| .shutdownwait     | No       | int      | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>.
+| Element           | Required | Type     | Default | Description
+| -------           | -------- | ----     | ------- | -----------
+| .name             | No       | string   |         | Used for the shortcut filename and the program title.
+| .description      | No       | string   | `""`    | Written in the description field of the shortcut.
+| .executable       | Yes      | string   |         | Path to the executable.
+| .arguments        | No       | string[] | `[]`    | Arguments of the executable.
+| .workingdirectory | No       | string   | `"."`   | Path to the working directory.
+| .shutdownwait     | No       | int      | `2000`  | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>.

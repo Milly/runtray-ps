@@ -56,16 +56,52 @@ Param(
     [switch] $GUI
 )
 
+Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
-$UUID = 'f5662bbc-52ce-4a38-8bf5-20897ed3b048'
-$appName = 'runtray'
-$config = $null
-$shutdownWait = 2000
-$mainHWnd = (Get-Process -PID $PID).MainWindowHandle
-$serviceProcess = $null
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+
+$UUID = 'f5662bbc-52ce-4a38-8bf5-20897ed3b048'
+$appName = 'runtray'
+$config = $null
+$mainHWnd = (Get-Process -PID $PID).MainWindowHandle
+$serviceProcess = $null
+
+$configSchema = @{
+    type=[PSObject]
+    required=@(
+        'executable'
+    )
+    properties=@{
+        name=@{
+            type=[string]
+            default=""
+        }
+        description=@{
+            type=[string]
+            default=""
+        }
+        executable=@{
+            type=[string]
+        }
+        arguments=@{
+            type=[array]
+            items=@{
+                type=[string]
+            }
+            default=@()
+        }
+        workingdirectory=@{
+            type=[string]
+            default="."
+        }
+        shutdownwait=@{
+            type=[int]
+            default=2000
+        }
+    }
+}
 
 function Start-CLI() {
     try {
@@ -80,19 +116,15 @@ function Start-CLI() {
 }
 
 function Start-Main() {
-    $script:appName = Remove-Extension(Split-Path -Path $PSCommandPath -Leaf)
+    $script:appName = Get-AppName
 
     if ($script:GUI) {
         Hide-Window
     }
 
-    if (-Not $script:ConfigPath) {
-        $ConfigPath = "$(Remove-Extension $PSCommandPath).json"
-    }
-    $script:config = Get-Content -Path $ConfigPath | ConvertFrom-Json
-    if ($script:config.name) {
-        $script:appName = $script:config.name
-    }
+    $script:config = Get-Config -Path $script:ConfigPath
+    $script:appName = Get-AppName
+    "Service name: $($script:appName)" | Write-Verbose
 
     switch ($script:Command) {
         'start' { Start-FromShortcut }
@@ -100,6 +132,54 @@ function Start-Main() {
         'uninstall' { Uninstall-Shortcut }
         'run' { Start-GUI }
         default { Get-Help $PSCommandPath }
+    }
+}
+
+function Get-Config([string]$Path) {
+    function parse($obj, $defs, $current) {
+        if (-Not ($obj -Is $defs.type)) {
+            throw "Property type is not [$($defs.type)]: $current"
+        }
+        if ($obj -Is [PSObject]) {
+            foreach ($name in $defs.required) {
+                if (-Not $config.PSObject.Properties[$name]) {
+                    throw "Required property not exists: $current.$name"
+                }
+            }
+            foreach ($propDef in $defs.properties.GetEnumerator()) {
+                $prop = $config.PSObject.Properties[$propDef.Key]
+                if ($prop) {
+                    parse $prop.Value $propDef.Value "$current.$($propDef.Key)"
+                } else {
+                    $config | Add-Member -NotePropertyName $propDef.Key -NotePropertyValue $propDef.Value.default
+                }
+            }
+        } elseif ($obj -Is [array]) {
+            for ($i = 0; $i -lt $obj.Count; $i++) {
+                parse $obj[$i] $defs.items "$current[$i]"
+            }
+        }
+    }
+
+    if (-Not $Path) {
+        $Path = "$(Remove-Extension $PSCommandPath).json"
+    }
+    $config = Get-Content -Path $Path -Raw | ConvertFrom-Json
+    try {
+        parse $config $script:configSchema '$'
+    } catch {
+        "Configuration file is invalid: $Path`n  $_" | Write-Error -Category InvalidData -CategoryReason "$_"
+    }
+    $config
+}
+
+function Get-AppName() {
+    if ($script:config -And $script:config.name) {
+        $script:config.name
+    } elseif ($script:config -And $script:ConfigPath) {
+        Remove-Extension (Split-Path -Path $script:ConfigPath -Leaf)
+    } else {
+        Remove-Extension (Split-Path -Path $PSCommandPath -Leaf)
     }
 }
 
@@ -184,25 +264,8 @@ function Start-GUI() {
 
 function Start-Executable([switch]$PassThru) {
     $executable = $script:config.executable
-
-    $arguments = if ($script:config.arguments -is [array]) {
-        ($script:config.arguments |
-         ConvertFrom-CmdEnvVars | ConvertTo-EscapedArg) -join ' '
-    } else {
-        $script:config.arguments | ConvertFrom-CmdEnvVars
-    }
-
-    $workDir = if ($script:config.workingdirectory) {
-        $script:config.workingdirectory | ConvertFrom-CmdEnvVars
-    } else {
-        '.'
-    }
-
-    $shutdownWait = if ($script:config.shutdownwait -is [int]) {
-        $script:config.shutdownwait
-    } else {
-        $script:shutdownWait
-    }
+    $arguments = $script:config.arguments | ConvertFrom-CmdEnvVars | ConvertTo-EscapedArg
+    $workDir = $script:config.workingdirectory | ConvertFrom-CmdEnvVars
 
     "Set working directory: $workDir" | Write-Verbose
     "Start executable: $executable $arguments" | Write-Verbose
@@ -366,7 +429,7 @@ function Disable-CloseButton() {
 function Stop-ProcessGracefully([System.Diagnostics.Process]$process) {
     if (-Not $process.HasExited) {
         "Send Ctrl-C to process: $($process.Id)" | Write-Verbose
-        $exited = Send-CtrlC $process -wait $shutdownWait
+        $exited = Send-CtrlC $process -wait $script:config.shutdownwait
         if (-Not $exited) {
             "Force stop process: $($process.Id)" | Write-Verbose
             Stop-ProcessTree $process.Id
