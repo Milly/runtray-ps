@@ -206,8 +206,13 @@ function Start-Executable([switch]$PassThru) {
 
     "Set working directory: $workDir" | Write-Verbose
     "Start executable: $executable $arguments" | Write-Verbose
-    Start-Process $executable $arguments -WorkingDirectory $workDir `
-        -NoNewWindow -PassThru:$PassThru
+    if ($arguments) {
+        Start-Process $executable $arguments -WorkingDirectory $workDir `
+            -NoNewWindow -PassThru:$PassThru
+    } else {
+        Start-Process $executable -WorkingDirectory $workDir `
+            -NoNewWindow -PassThru:$PassThru
+    }
 }
 
 function Invoke-InMutex([string]$name, [scriptblock]$block, [scriptblock]$elseBlock) {
