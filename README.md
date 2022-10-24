@@ -8,7 +8,7 @@ Configure detailed settings in the [JSON configuration file](#json-configuration
 
 `runtray.ps1` can run on Windows platforms with PowerShell 3.0 and .NET Framework 4.5 or later versions installed.
 
-[Windows PowerShell system requirements](https://learn.microsoft.com/powershell/scripting/windows-powershell/install/windows-powershell-system-requirements)
+[Windows PowerShell system requirements](https://learn.microsoft.com/powershell/scripting/windows-powershell/install/windows-powershell-system-requirements)  
 Preinstalled since Windows 8.
 
 ## Installation
@@ -17,13 +17,23 @@ Preinstalled since Windows 8.
 
 Users should unblock files downloaded from the Internet so that Windows does not block access to the files.
 
+#### With GUI
+
 1. Download `runtray.ps1`.
 2. Right-click the file and select **Properties** from the context menu.
 3. On the **General** tab of the file properties dialog, check the **Unblock** option.
 
+#### With CLI
+
+Use PowerShell's [`Unblock-File`][] cmdlet.
+
+    powershell -NoProfile -Command Unblock-File "path\to\runtray.ps1"
+
+[`Unblock-File`]: https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/unblock-file
+
 ### Use `runtray.ps1` as bundle
 
-1. Download `runtray.ps1` and [Unblock](unblock-downloaded-file).
+1. Download `runtray.ps1` and [Unblock](#unblock-downloaded-file).
 2. Copy the ps1 file and write a [JSON configuration file](#json-configuration-file) with the same name to the same folder.
 
        C:\my\app\my-application.ps1
@@ -35,7 +45,7 @@ Users should unblock files downloaded from the Internet so that Windows does not
 
 ### Use `runtray.ps1` as global
 
-1. Download `runtray.ps1` to any folder and [Unblock](unblock-downloaded-file).
+1. Download `runtray.ps1` to any folder and [Unblock](#unblock-downloaded-file).
 
        C:\my\program\runtray.ps1
 
@@ -90,11 +100,14 @@ Example::
 }
 ```
 
-| Element           | Required | Type     | Default | Description
-| -------           | -------- | ----     | ------- | -----------
-| .name             | No       | string   |         | Used for the shortcut filename and the program title.
-| .description      | No       | string   | `""`    | Written in the description field of the shortcut.
-| .executable       | Yes      | string   |         | Path to the executable.
-| .arguments        | No       | string[] | `[]`    | Arguments of the executable.
-| .workingdirectory | No       | string   | `"."`   | Path to the working directory.
-| .shutdownwait     | No       | int      | `2000`  | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>.
+| Element            | Required | Type     | Default | Description
+| -------            | -------- | ----     | ------- | -----------
+| $.name             | No       | string   | [^1]    | Used for the shortcut filename and the program title.
+| $.description      | No       | string   | `""`    | Written in the description field of the shortcut.
+| $.executable       | Yes      | string   |         | Path to the executable. [^2]
+| $.arguments        | No       | string[] | `[]`    | Arguments of the executable. [^2]
+| $.workingdirectory | No       | string   | `"."`   | Path to the working directory. [^2]
+| $.shutdownwait     | No       | int      | `2000`  | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>.
+
+[^1]: The base name of the configuration file without the extension is used.
+[^2]: Replace `%name%` in the string with the value of the environment variable with the specified name.
