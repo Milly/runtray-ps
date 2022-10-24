@@ -423,11 +423,11 @@ function Remove-Extension([string]$name) {
 }
 
 filter ConvertTo-EscapedArg() {
-    $s = "$_"
-    if ($s.Contains(' ') -And -Not ($s.Length -ge 2 -And $s.StartsWith('"') -And $s.EndsWith('"'))) {
-        $s = """$($s.Replace('"', '""'))"""
+    param([Parameter(Mandatory, ValueFromPipeline)] [string]$string)
+    if ($string -Match '[ "]' -And $string -NotLike '"*"') {
+        return '"' + $string.Replace('"', '""') + '"'
     }
-    return $s
+    $string
 }
 
 filter ConvertFrom-CmdEnvVars {
