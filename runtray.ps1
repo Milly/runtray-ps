@@ -56,6 +56,7 @@ Param(
     [Parameter(Position=0)]
     [ValidateSet('start', 'install', 'uninstall', 'run', 'help', IgnoreCase)]
     [string] $Command = 'help',
+    [Alias('c')]
     [string] $ConfigPath,
     [switch] $GUI,
     [switch] $PassThru
