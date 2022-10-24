@@ -20,6 +20,10 @@ Default is the same name as this script with .json extension.
 .PARAMETER GUI
 Enable GUI mode.
 
+.PARAMETER PassThru
+When command 'start', returns a process object.
+When command 'install', returns a shortcut COM object.
+
 .LINK
 https://github.com/Milly/runtray-ps
 
@@ -53,7 +57,8 @@ Param(
     [ValidateSet('start', 'install', 'uninstall', 'run', 'help', IgnoreCase)]
     [string] $Command = 'help',
     [string] $ConfigPath,
-    [switch] $GUI
+    [switch] $GUI,
+    [switch] $PassThru
 )
 
 Set-StrictMode -Version 3.0
@@ -127,8 +132,8 @@ function Start-Main() {
     "Service name: $($script:appName)" | Write-Verbose
 
     switch ($script:Command) {
-        'start' { Start-FromShortcut }
-        'install' { Install-Shortcut }
+        'start' { Start-FromShortcut -PassThru:($script:PassThru) }
+        'install' { Install-Shortcut -PassThru:($script:PassThru) }
         'uninstall' { Uninstall-Shortcut }
         'run' { Start-GUI }
         default { Get-Help $PSCommandPath }
@@ -211,13 +216,13 @@ function Get-ExecutableArguments() {
     $script:config.arguments | ConvertFrom-CmdEnvVars | ConvertTo-EscapedArg
 }
 
-function Start-FromShortcut() {
+function Start-FromShortcut([switch]$PassThru) {
     $shortcutPath = Get-ShortcutPath
     "Start shortcut: $shortcutPath" | Write-Verbose
-    Start-Process $shortcutPath
+    Start-Process $shortcutPath -PassThru:$PassThru
 }
 
-function Install-Shortcut() {
+function Install-Shortcut([switch]$PassThru) {
     $shortcutPath = Get-ShortcutPath
     "Install shortcut: $shortcutPath" | Write-Verbose
 
@@ -249,7 +254,9 @@ function Install-Shortcut() {
     $shortcut.IconLocation = "${executable},0"
     $shortcut.Save()
 
-    return $shortcut
+    if ($PassThru) {
+        return $shortcut
+    }
 }
 
 function Uninstall-Shortcut() {

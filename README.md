@@ -72,6 +72,7 @@ powershell -NoProfile -ExecutionPolicy RemoteSigned .\runtray.ps1 <Command> [Opt
 | ------             | -----------
 | -ConfigPath `file` | JSON configuration file path.
 | -GUI               | Enable GUI mode.
+| -PassThru          | Returns an object in some command.
 
 ### JSON configuration file
 
