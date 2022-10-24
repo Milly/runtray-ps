@@ -183,6 +183,34 @@ function Get-AppName() {
     }
 }
 
+function Get-WorkingDirectory() {
+    Push-Location
+    try {
+        if ($script:ConfigPath) {
+            $configDir = Split-Path -Path $script:ConfigPath -Parent
+            Set-Location -LiteralPath $configDir
+        }
+        $workDir = $script:config.workingdirectory | ConvertFrom-CmdEnvVars
+        Resolve-Path -LiteralPath $workDir
+    } finally {
+        Pop-Location
+    }
+}
+
+function Get-ExecutablePath() {
+    Push-Location
+    try {
+        Set-Location -LiteralPath (Get-WorkingDirectory)
+        Resolve-Path -LiteralPath (ConvertFrom-CmdEnvVars $script:config.executable)
+    } finally {
+        Pop-Location
+    }
+}
+
+function Get-ExecutableArguments() {
+    $script:config.arguments | ConvertFrom-CmdEnvVars | ConvertTo-EscapedArg
+}
+
 function Start-FromShortcut() {
     $shortcutPath = Get-ShortcutPath
     "Start shortcut: $shortcutPath" | Write-Verbose
@@ -195,7 +223,7 @@ function Install-Shortcut() {
 
     $workDir = Split-Path -Path $PSCommandPath -Parent
     $scriptName = Split-Path -Path $PSCommandPath -Leaf
-    $executable = Resolve-Path -LiteralPath $script:config.executable
+    $executable = Get-ExecutablePath
 
     $arguments = @(
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'RemoteSigned',
@@ -263,12 +291,12 @@ function Start-GUI() {
 }
 
 function Start-Executable([switch]$PassThru) {
-    $executable = $script:config.executable
-    $arguments = $script:config.arguments | ConvertFrom-CmdEnvVars | ConvertTo-EscapedArg
-    $workDir = $script:config.workingdirectory | ConvertFrom-CmdEnvVars
+    $workDir = Get-WorkingDirectory
+    $executable = Get-ExecutablePath
+    $arguments = Get-ExecutableArguments
 
     "Set working directory: $workDir" | Write-Verbose
-    "Start executable: $executable $arguments" | Write-Verbose
+    "Start executable: `"$executable`" $arguments" | Write-Verbose
     if ($arguments) {
         Start-Process $executable $arguments -WorkingDirectory $workDir `
             -NoNewWindow -PassThru:$PassThru
@@ -315,7 +343,8 @@ function Start-AppContext() {
 
     $appContext.add_Ready($restartService)
 
-    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($script:config.executable)
+    $executable = Get-ExecutablePath
+    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($executable)
     $notify = New-Object System.Windows.Forms.NotifyIcon
     $notify.Icon = $icon
     $notify.Text = $script:appName
@@ -393,13 +422,15 @@ filter ConvertTo-EscapedArg() {
     return $s
 }
 
-filter ConvertFrom-CmdEnvVars() {
-    [regex]::Replace("$_", '%(\w*)%', {
+filter ConvertFrom-CmdEnvVars {
+    param([Parameter(Mandatory, ValueFromPipeline)] [string]$string)
+    [regex]::Replace($string, '%(\w*)%', {
         $name = $args.groups[1].value
-        if ($name.Length -eq 0) {
-            '%%'
+        $value = [System.Environment]::GetEnvironmentVariable($name)
+        if ($null -eq $value) {
+            $args.groups[0].value
         } else {
-            [System.Environment]::GetEnvironmentVariable($name)
+            $value
         }
     })
 }

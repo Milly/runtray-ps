@@ -82,7 +82,7 @@ Example::
 {
     "name": "ping-local",
     "description": "Pinging localhost continuously.",
-    "executable": "C:\\Windows\\System32\\ping.exe",
+    "executable": "%WinDir%\\System32\\ping.exe",
     "arguments": ["-t", "127.0.0.1"],
     "workingdirectory": "%USERPROFILE%",
     "shutdownwait": 2000
