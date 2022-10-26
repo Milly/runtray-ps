@@ -69,7 +69,8 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
 $UUID = 'f5662bbc-52ce-4a38-8bf5-20897ed3b048'
-$appName = 'runtray'
+$scriptPath = $PSCommandPath
+$appName = (Split-Path -Path $scriptPath -Leaf) -replace '.ps1', ''
 $config = $null
 $mainHWnd = (Get-Process -PID $PID).MainWindowHandle
 $serviceProcess = $null
@@ -122,6 +123,7 @@ function Start-CLI() {
 }
 
 function Start-Main() {
+    # Execute early because it is used for error display.
     $script:appName = Get-AppName
 
     if ($script:GUI) {
@@ -137,7 +139,7 @@ function Start-Main() {
         'install' { Install-Shortcut -PassThru:($script:PassThru) }
         'uninstall' { Uninstall-Shortcut }
         'run' { Start-GUI }
-        default { Get-Help $PSCommandPath }
+        default { Get-Help $script:scriptPath }
     }
 }
 
@@ -168,7 +170,7 @@ function Get-Config([string]$Path) {
     }
 
     if (-Not $Path) {
-        $Path = "$(Remove-Extension $PSCommandPath).json"
+        $Path = "$(Remove-Extension $script:scriptPath).json"
     }
     $config = Get-Content -Path $Path -Raw | ConvertFrom-Json
     try {
@@ -182,10 +184,10 @@ function Get-Config([string]$Path) {
 function Get-AppName() {
     if ($script:config -And $script:config.name) {
         $script:config.name
-    } elseif ($script:config -And $script:ConfigPath) {
+    } elseif ($script:ConfigPath) {
         Remove-Extension (Split-Path -Path $script:ConfigPath -Leaf)
     } else {
-        Remove-Extension (Split-Path -Path $PSCommandPath -Leaf)
+        Remove-Extension (Split-Path -Path $script:scriptPath -Leaf)
     }
 }
 
@@ -227,8 +229,8 @@ function Install-Shortcut([switch]$PassThru) {
     $shortcutPath = Get-ShortcutPath
     "Install shortcut: $shortcutPath" | Write-Verbose
 
-    $workDir = Split-Path -Path $PSCommandPath -Parent
-    $scriptName = Split-Path -Path $PSCommandPath -Leaf
+    $workDir = Split-Path -Path $script:scriptPath -Parent
+    $scriptName = Split-Path -Path $script:scriptPath -Leaf
     $executable = Get-ExecutablePath
 
     $arguments = @(
@@ -405,7 +407,7 @@ function Start-AppContext() {
 
 function Get-ShortcutPath() {
     $ws = New-Object -ComObject WScript.Shell
-    Join-Path $ws.SpecialFolders['Startup'] "${appName}.lnk"
+    Join-Path $ws.SpecialFolders['Startup'] "${script:appName}.lnk"
 }
 
 function Show-MessageBox([string]$message, $buttonType='OK', $iconType='None', $defaultButton='button1'){
@@ -603,4 +605,7 @@ namespace RunTray {
 }
 '@
 
-Start-CLI
+# Determine script has been dot-sourced
+if (-Not $MyInvocation.line.TrimStart().StartsWith('. ')) {
+    Start-CLI
+}
