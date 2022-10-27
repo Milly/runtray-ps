@@ -495,6 +495,7 @@ function Stop-ProcessTree([int]$ppid) {
         Stop-Process -Id $ppid
     } catch [Microsoft.PowerShell.Commands.ProcessCommandException] {
         # pass
+        [void]$null
     }
 }
 
