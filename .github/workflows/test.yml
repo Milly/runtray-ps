@@ -1,0 +1,30 @@
+name: Test
+
+on: push
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        shell:
+          - pwsh
+          - powershell
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - run: $PSVersionTable
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependecies
+        run: |
+          Set-PSRepository psgallery -InstallationPolicy trusted
+          Install-Module -Confirm:$false -Force -Name Pester
+
+      - name: Run Pester
+        run: |
+          Invoke-Pester -Path tests

@@ -1,0 +1,36 @@
+name: Code Analysis
+
+on: push
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  code-analysis:
+    runs-on: windows-latest
+    steps:
+      - run: $PSVersionTable
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependecies
+        run: |
+          Set-PSRepository psgallery -InstallationPolicy trusted
+          Install-Module -Confirm:$false -Force -Name @(
+            'PSScriptAnalyzer'
+            'ConvertToSARIF'
+          )
+
+      - name: Run PSScriptAnalyzer
+        run: |
+          Import-Module ConvertToSARIF -Force
+
+          Invoke-ScriptAnalyzer -Path ./ -Settings ./settings/ScriptAnalyzerSettings.psd1 |
+          ConvertTo-SARIF -FilePath results.sarif
+
+      - name: Upload SARIF results file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results.sarif
