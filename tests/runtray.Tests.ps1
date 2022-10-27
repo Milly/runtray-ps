@@ -553,10 +553,12 @@ Describe 'runtray' {
 
     Describe 'Install-Shortcut' {
         BeforeEach {
+            $testShellExecutablePath = (Get-Process -Id $pid).Path
+
             $testShortcutPath = Join-Path $TestDrive 'foo.lnk'
             Mock Get-ShortcutPath { $testShortcutPath }
 
-            $testExecutablePath = (Get-Process -Id $pid).Path
+            $testExecutablePath = (Get-Command notepad.exe).Path
             Mock Get-ExecutablePath { $testExecutablePath }
 
             $script:config = @{
@@ -609,12 +611,12 @@ Describe 'runtray' {
                 $actual.Arguments | Should -BeLike "* .\$testSut run *"
                 $actual.Arguments | Should -BeLike $exptectedArgumentsLike
                 $actual.Description | Should -BeExactly 'about foobar'
-                $actual.FullName | Should -BeExactly $testShortcutPath
+                $actual.FullName | Should -Be $testShortcutPath
                 $actual.Hotkey | Should -BeNullOrEmpty
-                $actual.IconLocation | Should -BeExactly "$testExecutablePath,0"
-                $actual.TargetPath | Should -BeExactly $testExecutablePath
+                $actual.IconLocation | Should -Be "$testExecutablePath,0"
+                $actual.TargetPath | Should -Be $testShellExecutablePath
                 $actual.WindowStyle | Should -Be 7
-                $actual.WorkingDirectory | Should -BeExactly $testRoot
+                $actual.WorkingDirectory | Should -Be $testRoot
             }
         }
     }

@@ -229,6 +229,7 @@ function Install-Shortcut([switch]$PassThru) {
     $shortcutPath = Get-ShortcutPath
     "Install shortcut: $shortcutPath" | Write-Verbose
 
+    $shellExecutable = (Get-Process -PID $pid).Path
     $workDir = Split-Path -Path $script:scriptPath -Parent
     $scriptName = Split-Path -Path $script:scriptPath -Leaf
     $executable = Get-ExecutablePath
@@ -250,7 +251,7 @@ function Install-Shortcut([switch]$PassThru) {
     $ws = New-Object -ComObject WScript.Shell
     $shortcut = $ws.CreateShortcut($shortcutPath)
     $shortcut.Description = $script:config.description
-    $shortcut.TargetPath = 'powershell.exe'
+    $shortcut.TargetPath = $shellExecutable
     $shortcut.Arguments = $arguments
     $shortcut.WorkingDirectory = $workDir
     $shortcut.WindowStyle = 7  # Minimize
@@ -334,7 +335,10 @@ function Invoke-InMutex([string]$name, [scriptblock]$block, [scriptblock]$elseBl
 }
 
 function Start-AppContext() {
+    $executable = Get-ExecutablePath
+    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($executable)
     $appContext = New-Object RunTray.SyncApplicationContext
+    $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
 
     $serviceExitedHandler = {
         $appContext.ExitThread()
@@ -354,20 +358,12 @@ function Start-AppContext() {
         $service.add_Exited($serviceExitedHandler)
         $script:serviceProcess = $service
     }
-
     $appContext.add_Ready($restartService)
 
-    $executable = Get-ExecutablePath
-    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($executable)
-    $notify = New-Object System.Windows.Forms.NotifyIcon
-    $notify.Icon = $icon
-    $notify.Text = $script:appName
-    $notify.Visible = $true
-    $notify.ContextMenu = New-Object System.Windows.Forms.ContextMenu
-    $menuItems = @()
-
-    $consoleMenu = New-Object System.Windows.Forms.MenuItem 'Show &console'
-    $consoleMenu.Checked = -Not $script:GUI
+    $consoleMenu = [System.Windows.Forms.ToolStripMenuItem]@{
+        Text = 'Show &console'
+        Checked = -Not $script:GUI
+    }
     $consoleMenu.add_Click({
         $consoleMenu.Checked = -Not $consoleMenu.Checked
         if ($consoleMenu.Checked) {
@@ -376,9 +372,11 @@ function Start-AppContext() {
             Hide-Window
         }
     })
-    $menuItems += $consoleMenu
+    [void]$contextMenu.Items.Add($consoleMenu)
 
-    $restartMenu = New-Object System.Windows.Forms.MenuItem '&Restart service'
+    $restartMenu = [System.Windows.Forms.ToolStripMenuItem]@{
+        Text = '&Restart service'
+    }
     $restartMenu.add_Click({
         $msg = 'Are you sure you want to restart the service?'
         $res = Show-MessageBox $msg -buttonType YesNo -iconType Question -defaultButton button2
@@ -386,17 +384,24 @@ function Start-AppContext() {
             & $restartService
         }
     })
-    $menuItems += $restartMenu
+    [void]$contextMenu.Items.Add($restartMenu)
 
-    $menuItems += New-Object System.Windows.Forms.MenuItem '-'
+    [void]$contextMenu.Items.Add('-')  # Separator
 
-    $exitMenu = New-Object System.Windows.Forms.MenuItem 'E&xit'
+    $exitMenu = [System.Windows.Forms.ToolStripMenuItem]@{
+        Text = 'E&xit'
+    }
     $exitMenu.add_Click({
         $appContext.ExitThread()
     })
-    $menuItems += $exitMenu
+    [void]$contextMenu.Items.Add($exitMenu)
 
-    $notify.ContextMenu.MenuItems.AddRange($menuItems)
+    $notify = [System.Windows.Forms.NotifyIcon]@{
+        Icon = $icon
+        Text = $script:appName
+        Visible = $true
+        ContextMenuStrip = $contextMenu
+    }
 
     try {
         [void][System.Windows.Forms.Application]::Run($appContext)
@@ -493,7 +498,11 @@ function Stop-ProcessTree([int]$ppid) {
     }
 }
 
-Add-Type -ReferencedAssemblies System.Windows.Forms -TypeDefinition @'
+Add-Type -ReferencedAssemblies @(
+    'System.ComponentModel.Primitives'
+    'System.Diagnostics.Process'
+    'System.Windows.Forms'
+) -TypeDefinition @'
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
