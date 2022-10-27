@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Milly/runtray-ps/v1.1.0/schemas/config.schema.json",
+  "title": "RunTray Configuration",
+  "type": "object",
+  "required": [
+    "executable"
+  ],
+  "properties": {
+    "name": {
+      "title": "Program Name",
+      "description": "Used for the shortcut filename and the program title.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 127,
+      "examples": ["ping-local"],
+      "pattern": "^[^<>:\"/\\\\|?*]*$"
+    },
+    "description": {
+      "title": "Service Description",
+      "description": "Written in the description field of the shortcut.",
+      "type": "string",
+      "default": "",
+      "examples": ["Pinging localhost continuously."]
+    },
+    "executable": {
+      "title": "Executable Path",
+      "type": "string",
+      "minLength": 1,
+      "examples": ["%WinDir%\\System32\\ping.exe"],
+      "pattern": "^([a-zA-Z]+:)?[^<>:\"/|?*]*$"
+    },
+    "arguments": {
+      "title": "Executable Arguments",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "examples": [["-t", "127.0.0.1"]]
+    },
+    "workingdirectory": {
+      "title": "Working Directory",
+      "type": "string",
+      "minLength": 1,
+      "default": ".",
+      "examples": ["%USERPROFILE%"]
+    },
+    "shutdownwait": {
+      "title": "Wait time in milliseconds after sending Ctrl-C",
+      "type": "integer",
+      "minimum": 10,
+      "default": 2000
+    }
+  }
+}
