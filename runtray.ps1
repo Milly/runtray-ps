@@ -198,7 +198,7 @@ function Get-WorkingDirectory() {
             $configDir = Split-Path -Path $script:ConfigPath -Parent
             Set-Location -LiteralPath $configDir
         }
-        $workDir = $script:config.workingdirectory | ConvertFrom-CmdEnvVars
+        $workDir = $script:config.workingdirectory | ConvertFrom-CmdEnvVar
         Resolve-Path -LiteralPath $workDir
     } finally {
         Pop-Location
@@ -209,14 +209,14 @@ function Get-ExecutablePath() {
     Push-Location
     try {
         Set-Location -LiteralPath (Get-WorkingDirectory)
-        Resolve-Path -LiteralPath (ConvertFrom-CmdEnvVars $script:config.executable)
+        Resolve-Path -LiteralPath (ConvertFrom-CmdEnvVar $script:config.executable)
     } finally {
         Pop-Location
     }
 }
 
-function Get-ExecutableArguments() {
-    $script:config.arguments | ConvertFrom-CmdEnvVars | ConvertTo-EscapedArg
+function Get-ExecutableArgumentList() {
+    $script:config.arguments | ConvertFrom-CmdEnvVar | ConvertTo-EscapedArg
 }
 
 function Start-FromShortcut([switch]$PassThru) {
@@ -304,7 +304,7 @@ function Start-GUI() {
 function Start-Executable([switch]$PassThru) {
     $workDir = Get-WorkingDirectory
     $executable = Get-ExecutablePath
-    $arguments = Get-ExecutableArguments
+    $arguments = Get-ExecutableArgumentList
 
     "Set working directory: $workDir" | Write-Verbose
     "Start executable: `"$executable`" $arguments" | Write-Verbose
@@ -441,7 +441,7 @@ filter ConvertTo-EscapedArg() {
     $string
 }
 
-filter ConvertFrom-CmdEnvVars {
+filter ConvertFrom-CmdEnvVar {
     param([Parameter(Mandatory, ValueFromPipeline)] [string]$string)
     [regex]::Replace($string, '%(\w*)%', {
         $name = $args.groups[1].value

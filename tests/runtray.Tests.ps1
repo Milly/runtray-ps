@@ -453,7 +453,7 @@ Describe 'runtray' {
         }
     }
 
-    Describe 'Get-ExecutableArguments' {
+    Describe 'Get-ExecutableArgumentList' {
         BeforeEach {
             $script:config = @{
                 arguments='relative\to\file'
@@ -474,7 +474,7 @@ Describe 'runtray' {
             }
 
             It 'returns an empty array' {
-                Get-ExecutableArguments | Should -BeNullOrEmpty
+                Get-ExecutableArgumentList | Should -BeNullOrEmpty
             }
         }
 
@@ -486,7 +486,7 @@ Describe 'runtray' {
             }
 
             It 'returns the quoted element' {
-                Get-ExecutableArguments | Should -Be ('"foo "', 'bar')
+                Get-ExecutableArgumentList | Should -Be ('"foo "', 'bar')
             }
         }
 
@@ -503,7 +503,7 @@ Describe 'runtray' {
             }
 
             It 'returns the element replaced with the value of the environment variable' {
-                Get-ExecutableArguments | Should -Be ('XYZbar', 'foobar')
+                Get-ExecutableArgumentList | Should -Be ('XYZbar', 'foobar')
             }
         }
 
@@ -520,7 +520,7 @@ Describe 'runtray' {
             }
 
             It 'returns the quoted element replaced with the value of the environment variable' {
-                Get-ExecutableArguments | Should -Be ('"ABC XYZ"', 'foo')
+                Get-ExecutableArgumentList | Should -Be ('"ABC XYZ"', 'foo')
             }
         }
     }
@@ -660,7 +660,7 @@ Describe 'runtray' {
         BeforeEach {
             Mock Get-WorkingDirectory { 'TestDrive:\foo' }
             Mock Get-ExecutablePath { 'TestDrive:\bar\file.ext' }
-            Mock Get-ExecutableArguments { @('ab', '-c') }
+            Mock Get-ExecutableArgumentList { @('ab', '-c') }
             Mock Start-Process { if ($PassThru) { 'process-data' } }
         }
 
@@ -678,7 +678,7 @@ Describe 'runtray' {
 
         Context 'with empty arguments' {
             BeforeEach {
-                Mock Get-ExecutableArguments { @() }
+                Mock Get-ExecutableArgumentList { @() }
             }
 
             It 'should calls Start-Process' {
@@ -858,7 +858,7 @@ Describe 'runtray' {
         }
     }
 
-    Describe 'ConvertFrom-CmdEnvVars' {
+    Describe 'ConvertFrom-CmdEnvVar' {
         BeforeEach {
             $env:foo = 'ABC'
             $env:bar = 'XYZ'
@@ -872,37 +872,37 @@ Describe 'runtray' {
 
         Context "input string contains environment variable name like '%name%'" {
             It 'should be replaced with the value of the specified name' {
-                $actual = 'foo%bar%baz' | ConvertFrom-CmdEnvVars
+                $actual = 'foo%bar%baz' | ConvertFrom-CmdEnvVar
                 $actual | Should -BeExactly 'fooXYZbaz'
             }
 
             It 'should be replaced with the value of all the names specified' {
-                $actual = '%foo%%bar%baz' | ConvertFrom-CmdEnvVars
+                $actual = '%foo%%bar%baz' | ConvertFrom-CmdEnvVar
                 $actual | Should -BeExactly 'ABCXYZbaz'
             }
         }
 
         Context 'an environment variable with the specified name does not exist' {
             It 'returns same string' {
-                $actual = 'foobar%baz%' | ConvertFrom-CmdEnvVars
+                $actual = 'foobar%baz%' | ConvertFrom-CmdEnvVar
                 $actual | Should -BeExactly 'foobar%baz%'
             }
         }
 
         Context "input string contains '%%'" {
             It "returns same string'" {
-                $actual = 'foobar%%' | ConvertFrom-CmdEnvVars
+                $actual = 'foobar%%' | ConvertFrom-CmdEnvVar
                 $actual | Should -BeExactly 'foobar%%'
             }
         }
 
         It 'should available as a function' {
-            $actual = ConvertFrom-CmdEnvVars 'foo%bar%'
+            $actual = ConvertFrom-CmdEnvVar 'foo%bar%'
             $actual | Should -BeExactly 'fooXYZ'
         }
 
         It 'should available as a filter' {
-            $actual = '%foo%', '%bar%' | ConvertFrom-CmdEnvVars
+            $actual = '%foo%', '%bar%' | ConvertFrom-CmdEnvVar
             $actual | Should -BeExactly ('ABC', 'XYZ')
         }
     }
