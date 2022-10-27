@@ -10,7 +10,7 @@ Describe 'runtray' {
         . "$testRoot\$testSut"
 
         # save $script:* vars
-        $testSavedScriptVars = Get-Variable -Scope Local | Where-Object {
+        $testSavedScriptVars = Get-Variable -Scope Script | Where-Object {
             $_.Name -match '^[a-z]' -And
                 -Not $_.Options.HasFlag([System.Management.Automation.ScopedItemOptions]::Constant) -And
                 -Not $_.Options.HasFlag([System.Management.Automation.ScopedItemOptions]::ReadOnly)

@@ -68,14 +68,19 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
-$UUID = 'f5662bbc-52ce-4a38-8bf5-20897ed3b048'
-$scriptPath = $PSCommandPath
-$appName = (Split-Path -Path $scriptPath -Leaf) -replace '.ps1', ''
-$config = $null
-$mainHWnd = (Get-Process -PID $PID).MainWindowHandle
-$serviceProcess = $null
+$script:Command = $Command
+$script:ConfigPath = $ConfigPath
+$script:GUI = $GUI
+$script:PassThru = $PassThru
 
-$configSchema = @{
+$script:UUID = 'f5662bbc-52ce-4a38-8bf5-20897ed3b048'
+$script:scriptPath = $PSCommandPath
+$script:appName = (Split-Path -Path $script:scriptPath -Leaf) -replace '.ps1', ''
+$script:config = $null
+$script:mainHWnd = (Get-Process -PID $PID).MainWindowHandle
+$script:serviceProcess = $null
+
+$script:configSchema = @{
     type=[PSObject]
     required=@(
         'executable'
