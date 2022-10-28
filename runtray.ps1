@@ -201,7 +201,9 @@ function Get-WorkingDirectory() {
     try {
         if ($script:ConfigPath) {
             $configDir = Split-Path -Path $script:ConfigPath -Parent
-            Set-Location -LiteralPath $configDir
+            if ($configDir) {
+                Set-Location -LiteralPath $configDir
+            }
         }
         $workDir = $script:config.workingdirectory | ConvertFrom-CmdEnvVar
         Resolve-Path -LiteralPath $workDir

@@ -354,6 +354,19 @@ Describe 'runtray' {
                     Get-Location | Should -Be $testPWD
                 }
             }
+
+            Context '$ConfigPath does not contains directory path' {
+                BeforeEach {
+                    $testDirectory = Join-Path $testPWD 'relative\to'
+                    New-Item $testDirectory -ItemType Directory -Force
+                    $script:ConfigPath = 'my-app.json'
+                }
+
+                It 'returns an absolute path relative to the current directory' {
+                    Get-WorkingDirectory | Should -Be $testDirectory
+                    Get-Location | Should -Be $testPWD
+                }
+            }
         }
 
         Context '$config.workingdirectory contains environment variable replacement patterns' {
@@ -808,7 +821,7 @@ Describe 'runtray' {
 
         It 'returns valid path' {
             $actual = Get-ShortcutPath
-            $actual | Should -BeLikeExactly '*\Startup\app-foo.lnk'
+            $actual | Should -BeLike '*\Startup\app-foo.lnk'
         }
     }
 
