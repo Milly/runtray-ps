@@ -287,66 +287,72 @@ Describe 'runtray' {
             It 'returns base-name of $ConfigPath' {
                 Get-AppName | Should -BeExactly 'baz'
             }
-        }
 
-        Context '$config.name and $ConfigPath is empty' {
-            BeforeEach {
-                $script:config.name = $null
-                $script:ConfigPath = $null
-            }
+            Context '$ConfigPath is empty' {
+                BeforeEach {
+                    $script:ConfigPath = $null
+                }
 
-            It 'returns base-name of $scriptPath' {
-                Get-AppName | Should -BeExactly 'my-script'
+                It 'returns base-name of $scriptPath' {
+                    Get-AppName | Should -BeExactly 'my-script'
+                }
             }
         }
     }
 
     Describe 'Get-WorkingDirectory' {
         BeforeEach {
+            $testSavedLocation = Get-Location
+
             $script:config = @{
                 workingdirectory='relative\to'
             }
             $script:ConfigPath = Join-Path $TestDrive 'foo\my-app.json'
+
             $testDirectory = Join-Path $TestDrive 'foo\relative\to'
-            New-Item $testDirectory -ItemType Directory
+            New-Item $testDirectory -ItemType Directory -Force
+
+            $testPWD = Join-Path $TestDrive 'bar'
+            New-Item $testPWD -ItemType Directory -Force
+            Set-Location $testPWD
+        }
+
+        AfterEach {
+            Set-Location $testSavedLocation
         }
 
         Context '$config.workingdirectory is absolute path' {
             BeforeEach {
-                $testDirectory = Join-Path $TestDrive 'bar\baz'
+                $testDirectory = Join-Path $TestDrive 'baz\qux'
                 $script:config = @{
                     workingdirectory=$testDirectory
                 }
-                New-Item $testDirectory -ItemType Directory
+                New-Item $testDirectory -ItemType Directory -Force
             }
 
             It 'returns the absolute path spacified' {
                 Get-WorkingDirectory | Should -Be $testDirectory
+                Get-Location | Should -Be $testPWD
             }
         }
 
         Context '$config.workingdirectory is relative path' {
             It 'returns an absolute path relative to $ConfigPath' {
                 Get-WorkingDirectory | Should -Be $testDirectory
-            }
-        }
-
-        Context '$config.workingdirectory is relative path and $ConfigPath is empty' {
-            BeforeEach {
-                $testSavedLocation = Get-Location
-                $testPWD = Join-Path $TestDrive 'bar'
-                $testDirectory = Join-Path $testPWD 'relative\to'
-                New-Item $testDirectory -ItemType Directory
-                Set-Location $testPWD
-                $script:ConfigPath = $null
+                Get-Location | Should -Be $testPWD
             }
 
-            AfterEach {
-                Set-Location $testSavedLocation
-            }
+            Context '$ConfigPath is empty' {
+                BeforeEach {
+                    $testDirectory = Join-Path $testPWD 'relative\to'
+                    New-Item $testDirectory -ItemType Directory -Force
+                    $script:ConfigPath = $null
+                }
 
-            It 'returns an absolute path relative to the current directory' {
-                Get-WorkingDirectory | Should -Be $testDirectory
+                It 'returns an absolute path relative to the current directory' {
+                    Get-WorkingDirectory | Should -Be $testDirectory
+                    Get-Location | Should -Be $testPWD
+                }
             }
         }
 
@@ -357,7 +363,7 @@ Describe 'runtray' {
                     workingdirectory='bar\%foobar%'
                 }
                 $testDirectory = Join-Path $TestDrive 'foo\bar\XYZ'
-                New-Item $testDirectory -ItemType Directory
+                New-Item $testDirectory -ItemType Directory -Force
             }
 
             AfterEach {
@@ -366,6 +372,7 @@ Describe 'runtray' {
 
             It 'returns the absolute path replaced with the value of the environment variable' {
                 Get-WorkingDirectory | Should -Be $testDirectory
+                Get-Location | Should -Be $testPWD
             }
         }
 
@@ -380,6 +387,7 @@ Describe 'runtray' {
                 {
                     Get-WorkingDirectory
                 } | Should -Throw
+                Get-Location | Should -Be $testPWD
             }
         }
     }
@@ -505,22 +513,15 @@ Describe 'runtray' {
             It 'returns the element replaced with the value of the environment variable' {
                 Get-ExecutableArgumentList | Should -Be ('XYZbar', 'foobar')
             }
-        }
 
-        Context '$config.arguments contains environment variable replacement patterns and variable contains spaces' {
-            BeforeEach {
-                $env:foo = 'ABC XYZ'
-                $script:config = @{
-                    arguments=('%foo%', 'foo')
+            Context 'environment variable contains spaces' {
+                BeforeEach {
+                    $env:foo = 'ABC XYZ'
                 }
-            }
 
-            AfterEach {
-                $env:foo = $null
-            }
-
-            It 'returns the quoted element replaced with the value of the environment variable' {
-                Get-ExecutableArgumentList | Should -Be ('"ABC XYZ"', 'foo')
+                It 'returns the quoted element replaced with the value of the environment variable' {
+                    Get-ExecutableArgumentList | Should -Be ('"ABC XYZbar"', 'foobar')
+                }
             }
         }
     }
