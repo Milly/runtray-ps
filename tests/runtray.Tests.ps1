@@ -201,7 +201,7 @@ Describe 'runtray' {
         }
 
         Context 'wrong type property exist' {
-            $testCases = @(
+            It 'should throws an exception with ([<ExpectedType>]: <ExpectedJSONPath>)' -TestCases @(
                 @{
                     Config=@{name=42}
                     ExpectedType='string'
@@ -232,8 +232,7 @@ Describe 'runtray' {
                     ExpectedType='int'
                     ExpectedJSONPath='$.shutdownwait'
                 }
-            )
-            It 'should throws an exception with JSONPath' -TestCases $testCases {
+            ) {
                 Param($Config, $ExpectedType, $ExpectedJSONPath)
                 ConvertTo-Json (Merge-Config $validMinimumConfig $Config) > $testJsonFile
 
@@ -248,14 +247,13 @@ Describe 'runtray' {
                 ConvertTo-Json $validMinimumConfig > $testJsonFile
             }
 
-            $testCases = @(
+            It 'should insert a default value (<Expected>) to property "<Prop>"' -TestCases @(
                 @{Prop='name'; Expected=''}
                 @{Prop='description'; Expected=''}
                 @{Prop='workingdirectory'; Expected='.'}
                 @{Prop='arguments'; Expected=@()}
                 @{Prop='shutdownwait'; Expected=2000}
-            )
-            It 'should insert a default value' -TestCases $testCases {
+            ) {
                 Param($Prop, $Expected)
                 $actual = Get-Config $testJsonFile
 
