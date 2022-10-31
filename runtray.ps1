@@ -1,3 +1,14 @@
+<#PSScriptInfo
+.VERSION 1.1.0
+.GUID f5662bbc-52ce-4a38-8bf5-20897ed3b048
+.AUTHOR Milly
+.COPYRIGHT 2022 Milly
+.LICENSEURI https://github.com/Milly/runtray-ps/blob/master/LICENSE
+.PROJECTURI https://github.com/Milly/runtray-ps
+#>
+
+#Requires -Version 3
+
 <#
 .SYNOPSIS
 Run any console program in the notification area.
@@ -50,8 +61,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 #>
-#Requires -Version 3
-
 Param(
     [Parameter(Position=0)]
     [ValidateSet('start', 'install', 'uninstall', 'run', 'help', IgnoreCase)]
