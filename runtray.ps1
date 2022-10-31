@@ -63,7 +63,14 @@ SOFTWARE.
 #>
 Param(
     [Parameter(Position=0)]
-    [ValidateSet('start', 'install', 'uninstall', 'run', 'help', IgnoreCase)]
+    [ValidateSet(
+        'start',
+        'install',
+        'uninstall',
+        'run',
+        'version',
+        'help',
+        IgnoreCase)]
     [string] $Command = 'help',
     [Alias('c')]
     [string] $ConfigPath,
@@ -153,8 +160,13 @@ function Start-Main() {
         'install' { Install-Shortcut -PassThru:($script:PassThru) }
         'uninstall' { Uninstall-Shortcut }
         'run' { Start-GUI }
+        'version' { Get-Version }
         default { Get-Help $script:scriptPath }
     }
+}
+
+function Get-Version() {
+    (Test-ScriptFileInfo $PSCommandPath).Version
 }
 
 function Get-Config([string]$Path) {

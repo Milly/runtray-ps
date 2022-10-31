@@ -45,8 +45,8 @@ Describe 'runtray' {
             Mock Install-Shortcut {}
             Mock Uninstall-Shortcut {}
             Mock Start-GUI {}
+            Mock Get-Version {}
             Mock Get-Help {}
-            $script:Command = 'help'
         }
 
         It 'should change $script:appName with the return value of Get-AppName' {
@@ -111,10 +111,42 @@ Describe 'runtray' {
             Should -Invoke Start-GUI -Exactly 1
         }
 
+        It "should call Get-Version if `$script:Command is 'version'" {
+            $script:Command = 'version'
+
+            Start-Main
+
+            Should -Invoke Get-Version -Exactly 1
+        }
+
         It 'should call Get-Help if $script:Command is default' {
             Start-Main
 
             Should -Invoke Get-Help -Exactly 1 -ParameterFilter { $Name -eq $script:scriptPath }
+        }
+    }
+
+    Describe 'Get-Version' {
+        $setup = {
+            $gitTag = try {
+                git describe --abbrev=0 --tags 2>$null
+            } catch {
+                ''
+            }
+            $expectedVersion = if ($gitTag -match '^v\d') {
+                $gitTag.Substring(1)
+            }
+            $skipNoVersion = $null -eq $expectedVersion
+            if ($skipNoVersion) {
+                "SkipNoVersion: can not detect git tag: $gitTag" |
+                    Write-Host -ForegroundColor Yellow
+            }
+        }
+        BeforeDiscovery $setup
+        BeforeAll $setup
+
+        It 'returns version number' -Skip:$skipNoVersion {
+            Get-Version | Should -BeExactly $expectedVersion
         }
     }
 
