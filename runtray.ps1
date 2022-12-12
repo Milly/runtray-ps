@@ -32,8 +32,19 @@ Default is the same name as this script with .json extension.
 Enable GUI mode.
 
 .PARAMETER PassThru
-When command 'start', returns a process object.
-When command 'install', returns a shortcut COM object.
+Returns a System.Diagnostics.Process if the Command parameter is 'start'.
+Returns a shortcut ComObject (System.MarshalByRefObject) if the Command parameter is 'install'.
+Otherwise this parameter does nothing.
+
+.INPUTS
+None. You can't pipe input to runtray.ps1.
+
+.OUTPUTS
+None, String, System.Diagnostics.Process, System.MarshalByRefObject.
+Returns a System.Diagnostics.Process if the Command parameter is 'start' and the PassThru parameter is specified.
+Returns a shortcut ComObject (System.MarshalByRefObject) if the Command parameter is 'install' and the PassThru parameter is specified.
+Returns a string messages from the executable if the Command parameter is 'run'.
+Otherwise runtray.ps1 doesn't generate any output.
 
 .LINK
 https://github.com/Milly/runtray-ps
