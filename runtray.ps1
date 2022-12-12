@@ -175,17 +175,18 @@ function Get-Config([string]$Path) {
             throw "Property type is not [$($defs.type)]: $current"
         }
         if ($obj -Is [PSObject]) {
+            $props = $obj.PSObject.Properties
             foreach ($name in $defs.required) {
-                if (-Not $config.PSObject.Properties[$name]) {
+                if (-Not ($props.Name -contains $name)) {
                     throw "Required property not exists: $current.$name"
                 }
             }
             foreach ($propDef in $defs.properties.GetEnumerator()) {
-                $prop = $config.PSObject.Properties[$propDef.Key]
-                if ($prop) {
+                if ($props.Name -contains $propDef.Key) {
+                    $prop = $props[$propDef.Key]
                     parse $prop.Value $propDef.Value "$current.$($propDef.Key)"
                 } else {
-                    $config | Add-Member -NotePropertyName $propDef.Key -NotePropertyValue $propDef.Value.default
+                    $obj | Add-Member -NotePropertyName $propDef.Key -NotePropertyValue $propDef.Value.default
                 }
             }
         } elseif ($obj -Is [array]) {
