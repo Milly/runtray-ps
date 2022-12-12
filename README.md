@@ -96,7 +96,8 @@ Example::
     "executable": "%WinDir%\\System32\\ping.exe",
     "arguments": ["-t", "127.0.0.1"],
     "workingdirectory": "%USERPROFILE%",
-    "shutdownwait": 2000
+    "shutdownwait": 2000,
+    "autorestart": 2000
 }
 ```
 
@@ -108,6 +109,7 @@ Example::
 | $.arguments        | No       | string[] | `[]`    | Arguments of the executable. [^2]
 | $.workingdirectory | No       | string   | `"."`   | Path to the working directory. [^2]
 | $.shutdownwait     | No       | int      | `2000`  | Wait time in milliseconds after sending <kbd>Ctrl-C</kbd>.
+| $.autorestart      | No       | bool     | `false` | Auto-restart when service is terminated.
 
 [^1]: The base name of the configuration file without the extension is used.
 [^2]: Replace `%name%` in the string with the value of the environment variable with the specified name.
