@@ -36,8 +36,13 @@ Describe 'runtray' {
 
     Describe 'Start-Main' {
         BeforeEach {
-            $testConfig = ConvertFrom-Json `
-                '{"name": "foobar", "executable": "TestDrive:\foo\file"}'
+            $testJson = ConvertTo-Json @{
+                name='foobar'
+                executable='TestDrive:\foo\file'
+                autorestart=$false
+            }
+            $testConfig = ConvertFrom-Json $testJson
+
             Mock Get-AppName { 'my-foo-app' }
             Mock Get-Config { $testConfig }
             Mock Hide-Window {}

@@ -106,6 +106,7 @@ $script:appName = (Split-Path -Path $script:scriptPath -Leaf) -replace '.ps1', '
 $script:config = $null
 $script:mainHWnd = (Get-Process -PID $PID).MainWindowHandle
 $script:serviceProcess = $null
+$script:autoRestart = $false
 
 $script:configSchema = @{
     type=[PSObject]
@@ -139,6 +140,10 @@ $script:configSchema = @{
             type=[int]
             default=2000
         }
+        autorestart=@{
+            type=[bool]
+            default=$false
+        }
     }
 }
 
@@ -163,6 +168,7 @@ function Start-Main() {
     }
 
     $script:config = Get-Config -Path $script:ConfigPath
+    $script:autoRestart = $script:config.autorestart
     $script:appName = Get-AppName
     "Service name: $($script:appName)" | Write-Verbose
 
@@ -426,12 +432,23 @@ function Start-AppContext() {
     })
     [void]$contextMenu.Items.Add($restartMenu)
 
+    $autoRestartMenu = [System.Windows.Forms.ToolStripMenuItem]@{
+        Text = '&Auto restart'
+    }
+    $autoRestartMenu.Checked = $script:autoRestart
+    $autoRestartMenu.add_Click({
+        $autoRestartMenu.Checked = -Not $autoRestartMenu.Checked
+        $script:autoRestart = $autoRestartMenu.Checked
+    })
+    [void]$contextMenu.Items.Add($autoRestartMenu)
+
     [void]$contextMenu.Items.Add('-')  # Separator
 
     $exitMenu = [System.Windows.Forms.ToolStripMenuItem]@{
         Text = 'E&xit'
     }
     $exitMenu.add_Click({
+        $script:autoRestart = $false
         $appContext.ExitThread()
     })
     [void]$contextMenu.Items.Add($exitMenu)
@@ -444,7 +461,9 @@ function Start-AppContext() {
     }
 
     try {
-        [void][System.Windows.Forms.Application]::Run($appContext)
+        do {
+            $appContext.Run()
+        } while ($script:autoRestart)
     } finally {
         if ($script:serviceProcess) {
             $script:serviceProcess.remove_Exited($serviceExitedHandler)
@@ -605,7 +624,11 @@ namespace RunTray {
         public event EventHandler Ready;
 
         public SyncApplicationContext() {
+        }
+
+        public void Run() {
             Application.Idle += this.OnApplicationIdle;
+            Application.Run(this);
         }
 
         protected void OnReady(EventArgs e) {
