@@ -251,11 +251,12 @@ function Get-WorkingDirectory() {
     }
 }
 
-function Get-ExecutablePath() {
+function Get-ExecutableCommand() {
+    $executable = ConvertFrom-CmdEnvVar $script:config.executable
     Push-Location
     try {
         Set-Location -LiteralPath (Get-WorkingDirectory)
-        Resolve-Path -LiteralPath (ConvertFrom-CmdEnvVar $script:config.executable)
+        Get-Command $executable
     } finally {
         Pop-Location
     }
@@ -278,7 +279,7 @@ function Install-Shortcut([switch]$PassThru) {
     $shellExecutable = (Get-Process -PID $pid).Path
     $workDir = Split-Path -Path $script:scriptPath -Parent
     $scriptName = Split-Path -Path $script:scriptPath -Leaf
-    $executable = Get-ExecutablePath
+    $executable = (Get-ExecutableCommand).Path
 
     $arguments = @(
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'RemoteSigned',
@@ -349,7 +350,7 @@ function Start-GUI() {
 
 function Start-Executable([switch]$PassThru) {
     $workDir = Get-WorkingDirectory
-    $executable = Get-ExecutablePath
+    $executable = (Get-ExecutableCommand).Path
     $arguments = Get-ExecutableArgumentList
 
     "Set working directory: $workDir" | Write-Verbose
@@ -381,7 +382,7 @@ function Invoke-InMutex([string]$name, [scriptblock]$block, [scriptblock]$elseBl
 }
 
 function Start-AppContext() {
-    $executable = Get-ExecutablePath
+    $executable = (Get-ExecutableCommand).Path
     $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($executable)
     $appContext = New-Object RunTray.SyncApplicationContext
     $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
