@@ -99,7 +99,7 @@ Example::
     "arguments": ["-t", "127.0.0.1"],
     "workingdirectory": "%USERPROFILE%",
     "shutdownwait": 2000,
-    "autorestart": 2000
+    "autorestart": true
 }
 ```
 
