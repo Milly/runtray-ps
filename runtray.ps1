@@ -178,8 +178,8 @@ function Start-Main() {
 
     switch ($script:Command) {
         'start' { Start-FromShortcut -PassThru:($script:PassThru) }
-        'stop' { Stop-Service }
-        'restart' { Restart-Service }
+        'stop' { Stop-ServiceProcess }
+        'restart' { Restart-ServiceProcess }
         'install' { Install-Shortcut -PassThru:($script:PassThru) }
         'uninstall' { Uninstall-Shortcut }
         'run' { Start-GUI }
@@ -282,11 +282,11 @@ function Start-FromShortcut([switch]$PassThru) {
     Start-Process $shortcutPath -PassThru:$PassThru
 }
 
-function Stop-Service() {
+function Stop-ServiceProcess() {
     Send-NamedPipeMessage (Get-Identifier) -message 'stop'
 }
 
-function Restart-Service() {
+function Restart-ServiceProcess() {
     Send-NamedPipeMessage (Get-Identifier) -message 'restart'
 }
 

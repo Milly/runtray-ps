@@ -47,8 +47,8 @@ Describe 'runtray' {
             Mock Get-Config { $testConfig }
             Mock Hide-Window {}
             Mock Start-FromShortcut {}
-            Mock Stop-Service {}
-            Mock Restart-Service {}
+            Mock Stop-ServiceProcess {}
+            Mock Restart-ServiceProcess {}
             Mock Install-Shortcut {}
             Mock Uninstall-Shortcut {}
             Mock Start-GUI {}
@@ -76,20 +76,20 @@ Describe 'runtray' {
             Should -Invoke Start-FromShortcut -Exactly 1 -ParameterFilter { -Not $PassThru }
         }
 
-        It "should call Stop-Service if `$script:Command is 'stop'" {
+        It "should call Stop-ServiceProcess if `$script:Command is 'stop'" {
             $script:Command = 'stop'
 
             Start-Main
 
-            Should -Invoke Stop-Service -Exactly 1 -ParameterFilter { -Not $PassThru }
+            Should -Invoke Stop-ServiceProcess -Exactly 1 -ParameterFilter { -Not $PassThru }
         }
 
-        It "should call Restart-Service if `$script:Command is 'restart'" {
+        It "should call Restart-ServiceProcess if `$script:Command is 'restart'" {
             $script:Command = 'restart'
 
             Start-Main
 
-            Should -Invoke Restart-Service -Exactly 1 -ParameterFilter { -Not $PassThru }
+            Should -Invoke Restart-ServiceProcess -Exactly 1 -ParameterFilter { -Not $PassThru }
         }
 
         It "should call Start-FromShortcut -PassThru if `$script:Command is 'start'" {
