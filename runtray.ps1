@@ -170,7 +170,7 @@ function Start-Main() {
     $script:config = Get-Config -Path $script:ConfigPath
     $script:autoRestart = $script:config.autorestart
     $script:appName = Get-AppName
-    "Service name: $($script:appName)" | Write-Verbose
+    "Service name: ${script:appName}" | Write-Verbose
 
     switch ($script:Command) {
         'start' { Start-FromShortcut -PassThru:($script:PassThru) }
@@ -655,12 +655,11 @@ namespace RunTray {
 
         public IAsyncResult BeginInvoke(Delegate method, object[] args) {
             return Task.Factory.StartNew<object>(
-                    () => {
-                        return method.DynamicInvoke(args);
-                    },
-                    CancellationToken.None,
-                    TaskCreationOptions.None,
-                    this.taskScheduler);
+                () => method.DynamicInvoke(args),
+                CancellationToken.None,
+                TaskCreationOptions.None,
+                this.taskScheduler
+            );
         }
 
         public object EndInvoke(IAsyncResult result) {
