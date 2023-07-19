@@ -20,6 +20,8 @@ Specify the execution program path and arguments in the JSON configuration file.
 .PARAMETER Command
 Sub command.
     start      Start the executable from shortcut.
+    stop       Stop the service.
+    restart    Stop and start the service.
     install    Install shortcut to the startup folder.
     uninstall  Remove shortcut from the startup folder.
     run        Start the executable in current terminal.
@@ -76,6 +78,8 @@ Param(
     [Parameter(Position=0)]
     [ValidateSet(
         'start',
+        'stop',
+        'restart',
         'install',
         'uninstall',
         'run',
@@ -170,10 +174,12 @@ function Start-Main() {
     $script:config = Get-Config -Path $script:ConfigPath
     $script:autoRestart = $script:config.autorestart
     $script:appName = Get-AppName
-    "Service name: $($script:appName)" | Write-Verbose
+    "Service name: ${script:appName}" | Write-Verbose
 
     switch ($script:Command) {
         'start' { Start-FromShortcut -PassThru:($script:PassThru) }
+        'stop' { Stop-ServiceProcess }
+        'restart' { Restart-ServiceProcess }
         'install' { Install-Shortcut -PassThru:($script:PassThru) }
         'uninstall' { Uninstall-Shortcut }
         'run' { Start-GUI }
@@ -235,6 +241,10 @@ function Get-AppName() {
     }
 }
 
+function Get-Identifier() {
+    "${script:UUID}#${script:appName}"
+}
+
 function Get-WorkingDirectory() {
     Push-Location
     try {
@@ -270,6 +280,14 @@ function Start-FromShortcut([switch]$PassThru) {
     $shortcutPath = Get-ShortcutPath
     "Start shortcut: $shortcutPath" | Write-Verbose
     Start-Process $shortcutPath -PassThru:$PassThru
+}
+
+function Stop-ServiceProcess() {
+    Send-NamedPipeMessage (Get-Identifier) -message 'stop'
+}
+
+function Restart-ServiceProcess() {
+    Send-NamedPipeMessage (Get-Identifier) -message 'restart'
 }
 
 function Install-Shortcut([switch]$PassThru) {
@@ -320,8 +338,7 @@ function Uninstall-Shortcut() {
 }
 
 function Start-GUI() {
-    $mutexName = "${script:UUID}:${script:appName}"
-    Invoke-InMutex -name $mutexName -block {
+    Invoke-InMutex -name (Get-Identifier) -block {
         $lastError = $null
         Disable-CtrlC
         Disable-CloseButton
@@ -407,6 +424,19 @@ function Start-AppContext() {
     }
     $appContext.add_Ready($restartService)
 
+    $exitApp = {
+        $script:autoRestart = $false
+        $appContext.ExitThread()
+    }
+
+    $pipeMessage = {
+        switch ($_.message) {
+            'restart' { & $restartService }
+            'stop' { & $exitApp }
+        }
+    }
+    $appContext.add_PipeMessage($pipeMessage)
+
     $consoleMenu = [System.Windows.Forms.ToolStripMenuItem]@{
         Text = 'Show &console'
         Checked = -Not $script:GUI
@@ -449,8 +479,11 @@ function Start-AppContext() {
         Text = 'E&xit'
     }
     $exitMenu.add_Click({
-        $script:autoRestart = $false
-        $appContext.ExitThread()
+        $msg = 'Are you sure you want to stop the service?'
+        $res = Show-MessageBox $msg -buttonType YesNo -iconType Question -defaultButton button2
+        if ($res -eq 'Yes') {
+            & $exitApp
+        }
     })
     [void]$contextMenu.Items.Add($exitMenu)
 
@@ -462,6 +495,7 @@ function Start-AppContext() {
     }
 
     try {
+        $appContext.CreatePipe((Get-Identifier))
         do {
             $appContext.Run()
         } while ($script:autoRestart)
@@ -471,6 +505,24 @@ function Start-AppContext() {
         }
         $appContext.Dispose()
         $notify.Dispose()
+    }
+}
+
+function Send-NamedPipeMessage([string]$pipeName, [string]$message, $timeout=100) {
+    $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', $pipeName, 'Out')
+    try {
+        $pipe.Connect($timeout)
+        $buf = [System.Text.Encoding]::Unicode.GetBytes($message)
+        $pipe.Write($buf, 0, $buf.Length)
+    } catch {
+        if ($_.FullyQualifiedErrorId -eq 'TimeoutException') {
+            "Service not available: ${script:appName}" | Write-Error -Category ResourceUnavailable -CategoryReason "$_"
+
+        } else {
+            throw
+        }
+    } finally {
+        $pipe.Close()
     }
 }
 
@@ -562,12 +614,15 @@ function Stop-ProcessTree([int]$ppid) {
 Add-Type -ReferencedAssemblies @(
     'System.ComponentModel.Primitives'
     'System.Diagnostics.Process'
+    'System.IO.Pipes'
     'System.Windows.Forms'
 ) -TypeDefinition @'
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -621,15 +676,31 @@ namespace RunTray {
 
     public class SyncApplicationContext : ApplicationContext, ISynchronizeInvoke {
         private TaskScheduler taskScheduler;
+        private const int PIPE_IN_BUFFER_SIZE = 1024;
+        private NamedPipeServerStream pipeServerStream;
 
         public event EventHandler Ready;
+        public event EventHandler<PipeMessageArgs> PipeMessage;
 
         public SyncApplicationContext() {
+        }
+
+        protected override void Dispose(bool disposing) {
+            if (disposing) {
+                if (this.pipeServerStream != null) {
+                    this.pipeServerStream.Dispose();
+                }
+            }
+            base.Dispose(disposing);
         }
 
         public void Run() {
             Application.Idle += this.OnApplicationIdle;
             Application.Run(this);
+        }
+
+        public void CreatePipe(string pipeName) {
+            RunPipeServer(pipeName);
         }
 
         protected void OnReady(EventArgs e) {
@@ -638,10 +709,39 @@ namespace RunTray {
             }
         }
 
+        protected void OnPipeMessage(PipeMessageArgs e) {
+            if (this.PipeMessage != null) {
+                PipeMessage(this, e);
+            }
+        }
+
         private void OnApplicationIdle(object sender, EventArgs e) {
             Application.Idle -= this.OnApplicationIdle;
             this.taskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
             OnReady(e);
+        }
+
+        private async void RunPipeServer(string pipeName) {
+            while (true) {
+                var server = this.pipeServerStream = new NamedPipeServerStream(
+                    pipeName,
+                    PipeDirection.In,
+                    /* maxServerInstances */ 1,
+                    PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous,
+                    PIPE_IN_BUFFER_SIZE,
+                    /* outBufferSize */ 0
+                );
+                using (server) {
+                    await server.WaitForConnectionAsync();
+                    byte[] buffer = new byte[PIPE_IN_BUFFER_SIZE];
+                    int bytesRead;
+                    while ((bytesRead = await server.ReadAsync(buffer, 0, buffer.Length)) > 0) {
+                        var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                        OnPipeMessage(new PipeMessageArgs(message));
+                    }
+                }
+            }
         }
 
         // #region ISynchronizeInvoke
@@ -655,12 +755,11 @@ namespace RunTray {
 
         public IAsyncResult BeginInvoke(Delegate method, object[] args) {
             return Task.Factory.StartNew<object>(
-                    () => {
-                        return method.DynamicInvoke(args);
-                    },
-                    CancellationToken.None,
-                    TaskCreationOptions.None,
-                    this.taskScheduler);
+                () => method.DynamicInvoke(args),
+                CancellationToken.None,
+                TaskCreationOptions.None,
+                this.taskScheduler
+            );
         }
 
         public object EndInvoke(IAsyncResult result) {
@@ -680,6 +779,14 @@ namespace RunTray {
         // #endregion
     }
 
+    public class PipeMessageArgs : EventArgs
+    {
+        public string Message { get; private set; }
+
+        public PipeMessageArgs(string message) {
+            Message = message;
+        }
+    }
 }
 '@
 
