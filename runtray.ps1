@@ -235,6 +235,10 @@ function Get-AppName() {
     }
 }
 
+function Get-Identifier() {
+    "${script:UUID}#${script:appName}"
+}
+
 function Get-WorkingDirectory() {
     Push-Location
     try {
@@ -320,8 +324,7 @@ function Uninstall-Shortcut() {
 }
 
 function Start-GUI() {
-    $mutexName = "${script:UUID}:${script:appName}"
-    Invoke-InMutex -name $mutexName -block {
+    Invoke-InMutex -name (Get-Identifier) -block {
         $lastError = $null
         Disable-CtrlC
         Disable-CloseButton

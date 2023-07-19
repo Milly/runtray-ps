@@ -335,6 +335,25 @@ Describe 'runtray' {
         }
     }
 
+    Describe 'Get-Identifier' {
+        It 'returns non-empty string' {
+            Get-Identifier | Should -BeOfType [string]
+            Get-Identifier | Should -Not -BeNullOrEmpty
+        }
+
+        It 'returns a same string' {
+            $prevIdentifier = Get-Identifier
+            Get-Identifier | Should -BeExactly $prevIdentifier
+        }
+
+        It 'returns a different string if the appName has changed' {
+            $script:appName = 'foo'
+            $prevIdentifier = Get-Identifier
+            $script:appName = 'bar'
+            Get-Identifier | Should -Not -BeExactly $prevIdentifier
+        }
+    }
+
     Describe 'Get-WorkingDirectory' {
         BeforeEach {
             $testSavedLocation = Get-Location
