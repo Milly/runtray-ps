@@ -47,6 +47,8 @@ Describe 'runtray' {
             Mock Get-Config { $testConfig }
             Mock Hide-Window {}
             Mock Start-FromShortcut {}
+            Mock Stop-Service {}
+            Mock Restart-Service {}
             Mock Install-Shortcut {}
             Mock Uninstall-Shortcut {}
             Mock Start-GUI {}
@@ -72,6 +74,22 @@ Describe 'runtray' {
             Start-Main
 
             Should -Invoke Start-FromShortcut -Exactly 1 -ParameterFilter { -Not $PassThru }
+        }
+
+        It "should call Stop-Service if `$script:Command is 'stop'" {
+            $script:Command = 'stop'
+
+            Start-Main
+
+            Should -Invoke Stop-Service -Exactly 1 -ParameterFilter { -Not $PassThru }
+        }
+
+        It "should call Restart-Service if `$script:Command is 'restart'" {
+            $script:Command = 'restart'
+
+            Start-Main
+
+            Should -Invoke Restart-Service -Exactly 1 -ParameterFilter { -Not $PassThru }
         }
 
         It "should call Start-FromShortcut -PassThru if `$script:Command is 'start'" {
@@ -988,6 +1006,78 @@ Describe 'runtray' {
         It 'should available as a filter' {
             $actual = '%foo%', '%bar%' | ConvertFrom-CmdEnvVar
             $actual | Should -BeExactly ('ABC', 'XYZ')
+        }
+    }
+
+    Describe 'Command' -Tag SubProcess, Slow {
+        BeforeEach {
+            $testDir = 'TestDrive:\foo'
+            New-Item -ItemType Directory -Path $testDir
+
+            function Start-TestProcess([string]$command) {
+                $options = @{
+                    FilePath=(Get-Process -PID $PID).Path
+                    ArgumentList=(
+                        '-NoProfile',
+                        '-ExecutionPolicy',
+                        'RemoteSigned',
+                        "$testRoot\$testSut",
+                        $command,
+                        '-ConfigPath',
+                        "$testRoot\tests\fixtures\config\sleep5.json"
+                    )
+                    PassThru=$true
+                    RedirectStandardOutput="$testDir\$command.out.txt"
+                    RedirectStandardError="$testDir\$command.err.txt"
+                    WorkingDirectory=$testDir
+                }
+                Start-Process @options
+            }
+        }
+
+        AfterEach {
+            Remove-Item -LiteralPath $testDir -Recurse
+        }
+
+        Describe 'run' {
+            It 'runs service' {
+                $runProcess = Start-TestProcess('run')
+                $runProcess.WaitForExit()
+                $out = Get-Content -LiteralPath "$testDir\run.out.txt" -Raw
+                $err = Get-Content -LiteralPath "$testDir\run.err.txt" -Raw
+                $out | Should -BeExactly "5`r`n4`r`n3`r`n2`r`n1`r`ndone`r`n"
+                $err | Should -Be $null
+            }
+        }
+
+        Describe 'stop' {
+            It 'stops service' -Tag Flaky {
+                $runProcess = Start-TestProcess('run')
+                Start-Sleep 1
+                $stopProcess = Start-TestProcess('stop')
+                $stopProcess.WaitForExit()
+                $runProcess.WaitForExit()
+                $out = Get-Content -LiteralPath "$testDir\run.out.txt" -Raw
+                $err = Get-Content -LiteralPath "$testDir\run.err.txt" -Raw
+                $out | Should -Not -BeExactly "5`r`n4`r`n3`r`n2`r`n1`r`ndone`r`n"
+                $out | Should -Match '^5\r\n'
+                $err | Should -Be $null
+            }
+        }
+
+        Describe 'restart' {
+            It 'stop and start service' -Tag Flaky {
+                $runProcess = Start-TestProcess('run')
+                Start-Sleep 1
+                $stopProcess = Start-TestProcess('restart')
+                $stopProcess.WaitForExit()
+                $runProcess.WaitForExit()
+                $out = Get-Content -LiteralPath "$testDir\run.out.txt" -Raw
+                $err = Get-Content -LiteralPath "$testDir\run.err.txt" -Raw
+                $out | Should -Not -BeExactly "5`r`n4`r`n3`r`n2`r`n1`r`ndone`r`n"
+                $out | Should -Match '^5\r\n[\s\S]*5\r\n4[\s\S]*done\r\n$'
+                $err | Should -Be $null
+            }
         }
     }
 

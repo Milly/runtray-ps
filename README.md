@@ -74,6 +74,8 @@ powershell -NoProfile -ExecutionPolicy RemoteSigned .\runtray.ps1 <Command> [Opt
 | Command   | Description
 | -------   | -----------
 | start     | Start the executable from shortcut.
+| stop      | Stop the service.
+| restart   | Stop and start the service.
 | install   | Install shortcut to the startup folder.
 | uninstall | Remove shortcut from the startup folder.
 | run       | Start the executable in current terminal. For internal or debug.
