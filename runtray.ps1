@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.2.0
+.VERSION 1.3.0
 .GUID f5662bbc-52ce-4a38-8bf5-20897ed3b048
 .AUTHOR Milly
 .COPYRIGHT 2022 Milly
