@@ -440,57 +440,71 @@ Describe 'runtray' {
         }
     }
 
-    Describe 'Get-ExecutablePath' {
+    Describe 'Get-ExecutableCommand' {
         BeforeEach {
-            $script:config = @{
-                executable='relative\to\file'
-            }
-
             $testDirectory = Join-Path $TestDrive 'foo'
             mock Get-WorkingDirectory { $testDirectory }
 
-            $testFile = Join-Path $testDirectory 'relative\to\file'
+            $testFile = Join-Path $testDirectory 'path\to\file.cmd'
             New-Item $testFile -ItemType File -Force
         }
 
         Context '$config.executable is absolute path' {
             BeforeEach {
-                $testFile = Join-Path $TestDrive 'bar\baz\file'
-                New-Item $testFile -ItemType File -Force
-
                 $script:config = @{
                     executable=$testFile
                 }
             }
 
-            It 'returns the absolute path spacified' {
-                Get-ExecutablePath | Should -Be $testFile
+            It 'returns the absolute path' {
+                (Get-ExecutableCommand).Path | Should -Be $testFile
             }
         }
 
         Context '$config.executable is relative path' {
-            It 'returns an absolute path relative to WorkingDirectory' {
-                Get-ExecutablePath | Should -Be $testFile
+            BeforeEach {
+                $script:config = @{
+                    executable='path\to\file.cmd'
+                }
+            }
+
+            It 'returns an absolute path' {
+                (Get-ExecutableCommand).Path | Should -Be $testFile
             }
         }
 
         Context '$config.executable contains environment variable replacement patterns' {
             BeforeEach {
-                $env:foobar = 'XYZ'
+                $env:foobar = $testDirectory
                 $script:config = @{
-                    executable='bar\%foobar%\file'
+                    executable='%foobar%\path\to\file.cmd'
                 }
-
-                $testFile = Join-Path $testDirectory 'bar\XYZ\file'
-                New-Item $testFile -ItemType File -Force
             }
 
             AfterEach {
                 $env:foobar = $null
             }
 
-            It 'returns the absolute path replaced with the value of the environment variable' {
-                Get-ExecutablePath | Should -Be $testFile
+            It 'returns the absolute path' {
+                (Get-ExecutableCommand).Path | Should -Be $testFile
+            }
+        }
+
+        Context '$config.executable is a command that contain in $PATH' {
+            BeforeEach {
+                $testSavedPath = $env:Path
+                $env:Path = (Join-Path $testDirectory 'path\to') + ";$env:Path"
+                $script:config = @{
+                    executable='file.cmd'
+                }
+            }
+
+            AfterEach {
+                $env:Path = $testSavedPath
+            }
+
+            It 'returns the absolute path' {
+                (Get-ExecutableCommand).Path | Should -Be $testFile
             }
         }
 
@@ -503,7 +517,7 @@ Describe 'runtray' {
 
             It 'should throws an exception' {
                 {
-                    Get-ExecutablePath
+                    Get-ExecutableCommand
                 } | Should -Throw
             }
         }
@@ -607,8 +621,9 @@ Describe 'runtray' {
             $testShortcutPath = Join-Path $TestDrive 'foo.lnk'
             Mock Get-ShortcutPath { $testShortcutPath }
 
-            $testExecutablePath = (Get-Command notepad.exe).Path
-            Mock Get-ExecutablePath { $testExecutablePath }
+            $testExecutableCommand = Get-Command notepad.exe
+            $testExecutablePath = $testExecutableCommand.Path
+            Mock Get-ExecutableCommand { $testExecutableCommand }
 
             $script:config = @{
                 name='baz'
@@ -708,7 +723,8 @@ Describe 'runtray' {
     Describe 'Start-Executable' {
         BeforeEach {
             Mock Get-WorkingDirectory { 'TestDrive:\foo' }
-            Mock Get-ExecutablePath { 'TestDrive:\bar\file.ext' }
+            $testExecutableCommand = New-Object PSObject -Property (@{Path='TestDrive:\bar\file.ext'}) 
+            Mock Get-ExecutableCommand { $testExecutableCommand }
             Mock Get-ExecutableArgumentList { @('ab', '-c') }
             Mock Start-Process { if ($PassThru) { 'process-data' } }
         }
